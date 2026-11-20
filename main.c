@@ -24,7 +24,6 @@ void stall_for_judder(void) {
 int main(void) {
 	unsigned char pressed = 0;
 	unsigned char prev_pressed = 0;	
-	unsigned char taken = 0;
 	unsigned char state_has_changed = 0;
 
 	DDRB |= GREEN;
