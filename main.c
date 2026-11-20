@@ -14,7 +14,7 @@
 #define GREEN BIT0
 #define RED BIT1
 
-//ensure you don't read judder flipps
+//ensure you don't read judder flips
 void stall_for_judder(void) {
 	for(volatile unsigned long i = 0; i < 40000UL; i++) {
 		
