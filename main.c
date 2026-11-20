@@ -55,7 +55,7 @@ int main(void) {
 				PORTB &= ~RED;
 				PORTB |= GREEN;
 			}
-			state_has_changed = false;
+			state_has_changed = 0;
 		}
 	}
 
