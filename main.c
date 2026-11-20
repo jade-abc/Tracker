@@ -13,6 +13,7 @@
 
 #define GREEN BIT0
 #define RED BIT1
+#define BUTTON BIT2
 
 //ensure you don't read judder flips
 void stall_for_judder(void) {
@@ -34,7 +35,7 @@ int main(void) {
 	PORTD |= BIT2;
 
 	while(1) {
-		pressed = !(PIND & BIT2);
+		pressed = !(PIND & BUTTON);
 
 		if(!pressed && prev_pressed) prev_pressed = 0;
 
