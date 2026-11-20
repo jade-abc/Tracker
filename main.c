@@ -14,7 +14,8 @@
 #define GREEN BIT0
 #define RED BIT1
 
-void stall_judder(void) {
+//ensure you don't read judder flipps
+void stall_for_judder(void) {
 	for(volatile unsigned long i = 0; i < 40000UL; i++) {
 		
 	}
@@ -40,7 +41,7 @@ int main(void) {
 
 		if(pressed && !prev_pressed) {
 			state_has_changed = 1;
-			stall_judder();
+			stall_for_judder();
 			prev_pressed = 1;
 		}
 
