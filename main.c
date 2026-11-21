@@ -1,4 +1,4 @@
-//red led = PD5 (OC0A) green led = PD6 (OC0B) button = PD2 
+//red led = PD5 (OCR0B) green led = PD6 (OCR0A) button = PD2 
 //check atmega328p datasheet for register descriptions 
 
 
