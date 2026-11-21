@@ -1,17 +1,17 @@
-//red led = PD5 (OC0A) green led = PB3 (OC2A) button = PD2 
+//red led = PD5 (OC0A) green led = PD6 (OC0B) button = PD2 
 //check atmega328p datasheet for register descriptions 
 
 
 //timer0 constants for PWM 
 #define TCCR0A 	(*(volatile unsigned char *)0x44)  
 #define TCCR0B 	(*(volatile unsigned char *)0x45)  
+#define OCR0A	(*(volatile unsigned char *)0x47)
 #define OCR0B	(*(volatile unsigned char *)0x48)
 
 //timer2 for same
 #define TCCR2A 	(*(volatile unsigned char *)0xB0)  
 #define TCCR2B 	(*(volatile unsigned char *)0xB1)  
 #define OCR2A	(*(volatile unsigned char *)0xB3)
-
 
 #define PORTB 	(*(volatile unsigned char *)0x25)  
 #define DDRB	(*(volatile unsigned char *)0x24)
@@ -30,10 +30,9 @@
 #define BIT6	((unsigned char)1 << 6)
 #define BIT7	((unsigned char)1 << 7)
 
-#define GREEN 	OCR2A
+#define GREEN 	OCR0A
 #define RED 	OCR0B
 #define BUTTON 	BIT2
-
 
 //ensure you don't read judder flips
 void stall_for_judder(void) {
@@ -51,22 +50,17 @@ int main(void) {
 
 	DDRD &= ~BIT2;	
 	DDRD |= (BIT5);
+	DDRD |= BIT6;
 	PORTD |= BIT2;
 	
-	DDRB |= BIT3;
 
 	//set OC0B to fast PWM, non inverting mode 
 	TCCR0A = (BIT0 | BIT1| BIT5);
 	//set prescaler to clk/64 (976Hz at 16MHz)
 	TCCR0B = (BIT0 | BIT1);
 
-	//set OC2A to fast PWM
-	TCCR2A = (BIT0 | BIT1);
-	//prescaler to clk/64
-	TCCR2B = BIT2;
-
 	//ensure green light is off
-	PORTB &= ~BIT3;	
+	PORTD &= ~BIT6;	
 
 	RED = intensity;
 
@@ -92,8 +86,8 @@ int main(void) {
 			//could think of was detaching the pins from PWM completely and then turning them off as GPIO pins 
 			if(taken) {
 				//detach the green pin from timer2 and drive it to a LOW signal
-				TCCR2A &= ~BIT7;
-				PORTB &= ~BIT3;
+				TCCR0A &= ~BIT7;
+				PORTD &= ~BIT6;
 				//attach the red pin to timer0 and set it to be intensity
 				TCCR0A |= BIT5;
 				RED = intensity;
@@ -103,7 +97,7 @@ int main(void) {
 				TCCR0A &= ~BIT5;
 				PORTD &= ~BIT5;
 				//attach the green pin to timer2 and set it to be intensity
-				TCCR2A |= BIT7;
+				TCCR0A |= BIT7;
 				GREEN = intensity;
 			}
 			taken = !taken;
