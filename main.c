@@ -11,11 +11,22 @@
  |      +                                                                                                                              *     |
  *===========================================================================================================================================*/
 
+#define SREG 	(*(volatile unsigned char *)	0x5f)  
+
 //timer0 constants for PWM 
 #define TCCR0A 	(*(volatile unsigned char *)	0x44)  
 #define TCCR0B 	(*(volatile unsigned char *)	0x45)  
 #define OCR0A	(*(volatile unsigned char *)	0x47)
 #define OCR0B	(*(volatile unsigned char *)	0x48)
+
+//timer1 constants to use as hardware timer
+#define TCCR1A	(*(volatile unsigned char *)	0x80)
+#define TCCR1B	(*(volatile unsigned char *)	0x81)
+#define TCNT1L	(*(volatile unsigned char *)	0x84)
+#define TCNT1H	(*(volatile unsigned char *)	0x85)
+#define OCR1AL	(*(volatile unsigned char *)	0x88)
+#define OCR1AH	(*(volatile unsigned char *)	0x89)
+#define TIMSK1	(*(volatile unsigned char *)	0x6F)
 
 //timer2 for same
 #define TCCR2A 	(*(volatile unsigned char *)	0xB0)  
@@ -43,11 +54,30 @@
 #define RED 	OCR0B
 #define BUTTON 	BIT2
 
-//ensure you don't read judder flips
-void stall_for_judder(void) {
-	for(volatile unsigned long i = 0; i < 40000UL; i++) {
-		
-	}
+
+volatile unsigned char juddered = 0;
+
+void start_juddered(void) {
+	PORTB &= ~BIT5;
+	juddered = 1;	
+	TIMSK1  |= BIT1; 
+	TCCR1A |= BIT7;
+	OCR1AH |= (BIT5 | BIT3);
+	OCR1AL |= (BIT0 | BIT1 | BIT4 | BIT6 | BIT7);
+	TCCR1B |= (BIT0 | BIT1);
+}
+
+
+//interrupt fires when the timer reaches its number
+__attribute__ ((signal, used, externally_visible))
+void __vector_11(void) {
+	SREG &= ~BIT7;
+	TCCR1B = 0; 
+	juddered = 0;
+	PORTB |= BIT5;
+	TIMSK1 = 0;
+	TCCR1A = 0;
+	SREG |= BIT7;
 }
 
 int main(void) {
@@ -56,6 +86,11 @@ int main(void) {
 	unsigned char prev_pressed = 0;	
 	unsigned char taken = 0; //0 = red lit, 1 = green lit
 	unsigned char state_has_changed = 0;
+
+	SREG |= BIT7;
+	
+	DDRB |= BIT5;
+	PORTB |= BIT5;
 
 	DDRD &= ~BIT2;	
 	DDRD |= (BIT5);
@@ -76,41 +111,44 @@ int main(void) {
 
 
 	while(1) {
-		pressed = !(PIND & BUTTON);
+		if (!juddered) {
+			pressed = !(PIND & BUTTON);
 
-		if(!pressed && prev_pressed) 
-		{		
-			stall_for_judder();
-			prev_pressed = 0;
-		}
-
-		if(pressed && !prev_pressed) {
-			state_has_changed = 1;
-			stall_for_judder();
-			prev_pressed = 1;
-		}
-
-		if(state_has_changed) {
-			//changing to PWM mode it became clear that fast PWM still emits a spike at 0 giving a faint glow, the easiest fix I 
-			//could think of was detaching the pins from PWM completely and then turning them off as GPIO pins 
-			if(taken) {
-				//detach the green pin from timer2 and drive it to a LOW signal
-				TCCR0A &= ~BIT7;
-				PORTD &= ~BIT6;
-				//attach the red pin to timer0 and set it to be intensity
-				TCCR0A |= BIT5;
-				RED = intensity;
+			if(!pressed && prev_pressed) 
+			{		
+				start_juddered();
+				prev_pressed = 0;
+				continue;
 			}
-			if(!taken) {
-				//detach the red pin from timer0 and drive it to a LOW signal
-				TCCR0A &= ~BIT5;
-				PORTD &= ~BIT5;
-				//attach the green pin to timer2 and set it to be intensity
-				TCCR0A |= BIT7;
-				GREEN = intensity;
+
+			if(pressed && !prev_pressed) {
+				state_has_changed = 1;
+				prev_pressed = 1;
+				start_juddered();
 			}
-			taken = !taken;
-			state_has_changed = 0;
+
+			if(state_has_changed) {
+				//changing to PWM mode it became clear that fast PWM still emits a spike at 0 giving a faint glow, the easiest fix I 
+				//could think of was detaching the pins from PWM completely and then turning them off as GPIO pins 
+				if(taken) {
+					//detach the green pin from timer2 and drive it to a LOW signal
+					TCCR0A &= ~BIT7;
+					PORTD &= ~BIT6;
+					//attach the red pin to timer0 and set it to be intensity
+					TCCR0A |= BIT5;
+					RED = intensity;
+				}
+				if(!taken) {
+					//detach the red pin from timer0 and drive it to a LOW signal
+					TCCR0A &= ~BIT5;
+					PORTD &= ~BIT5;
+					//attach the green pin to timer2 and set it to be intensity
+					TCCR0A |= BIT7;
+					GREEN = intensity;
+				}
+				taken = !taken;
+				state_has_changed = 0;
+			}
 		}
 	}
 }
