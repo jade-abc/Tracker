@@ -2,33 +2,42 @@
 //check atmega328p datasheet for register descriptions 
 
 
+
+/*===========================================================================================================================================*
+ |      +                                                                                                                              *     |
+ |                                                                  *                                                                        |
+ |*					    *                   CONSTANTS                    *                                              *| 
+ |                                                                  *                                                                        |
+ |	+                                                                                                                              *     |
+ *===========================================================================================================================================*/
+
 //timer0 constants for PWM 
-#define TCCR0A 	(*(volatile unsigned char *)0x44)  
-#define TCCR0B 	(*(volatile unsigned char *)0x45)  
-#define OCR0A	(*(volatile unsigned char *)0x47)
-#define OCR0B	(*(volatile unsigned char *)0x48)
+#define TCCR0A 	(*(volatile unsigned char *)	0x44)  
+#define TCCR0B 	(*(volatile unsigned char *)	0x45)  
+#define OCR0A	(*(volatile unsigned char *)	0x47)
+#define OCR0B	(*(volatile unsigned char *)	0x48)
 
 //timer2 for same
-#define TCCR2A 	(*(volatile unsigned char *)0xB0)  
-#define TCCR2B 	(*(volatile unsigned char *)0xB1)  
-#define OCR2A	(*(volatile unsigned char *)0xB3)
+#define TCCR2A 	(*(volatile unsigned char *)	0xB0)  
+#define TCCR2B 	(*(volatile unsigned char *)	0xB1)  
+#define OCR2A	(*(volatile unsigned char *)	0xB3)
 
-#define PORTB 	(*(volatile unsigned char *)0x25)  
-#define DDRB	(*(volatile unsigned char *)0x24)
-#define PINB	(*(volatile unsigned char *)0x23)
+#define PORTB 	(*(volatile unsigned char *)	0x25)  
+#define DDRB	(*(volatile unsigned char *)	0x24)
+#define PINB	(*(volatile unsigned char *)	0x23)
 
-#define PORTD 	(*(volatile unsigned char *)0x2B)  
-#define DDRD	(*(volatile unsigned char *)0x2A)
-#define PIND	(*(volatile unsigned char *)0x29)
+#define PORTD 	(*(volatile unsigned char *)	0x2B)  
+#define DDRD	(*(volatile unsigned char *)	0x2A)
+#define PIND	(*(volatile unsigned char *)	0x29)
 
-#define BIT0	((unsigned char)1)
-#define BIT1	((unsigned char)1 << 1)
-#define BIT2	((unsigned char)1 << 2)
-#define BIT3	((unsigned char)1 << 3)
-#define BIT4	((unsigned char)1 << 4)
-#define BIT5	((unsigned char)1 << 5)
-#define BIT6	((unsigned char)1 << 6)
-#define BIT7	((unsigned char)1 << 7)
+#define BIT0	((unsigned char)		1)
+#define BIT1	((unsigned char)		1 << 1)
+#define BIT2	((unsigned char)		1 << 2)
+#define BIT3	((unsigned char)		1 << 3)
+#define BIT4	((unsigned char)		1 << 4)
+#define BIT5	((unsigned char)		1 << 5)
+#define BIT6	((unsigned char)		1 << 6)
+#define BIT7	((unsigned char)		1 << 7)
 
 #define GREEN 	OCR0A
 #define RED 	OCR0B
@@ -54,7 +63,7 @@ int main(void) {
 	PORTD |= BIT2;
 	
 
-	//set OC0B to fast PWM, non inverting mode 
+	//set OC0B to fast PWM, non inverting mode, attach red to pwm 
 	TCCR0A = (BIT0 | BIT1| BIT5);
 	//set prescaler to clk/64 (976Hz at 16MHz)
 	TCCR0B = (BIT0 | BIT1);
