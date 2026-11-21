@@ -1,8 +1,13 @@
+//red led = PD5 (OC0A) green led = PB3 (OC2A) button = PD2 
+//check atmega328p datasheet for register descriptions 
+
+
+//timer0 constants for PWM 
 #define TCCR0A 	(*(volatile unsigned char *)0x44)  
 #define TCCR0B 	(*(volatile unsigned char *)0x45)  
-#define OCR0A	(*(volatile unsigned char *)0x47)
 #define OCR0B	(*(volatile unsigned char *)0x48)
 
+//timer2 for same
 #define TCCR2A 	(*(volatile unsigned char *)0xB0)  
 #define TCCR2B 	(*(volatile unsigned char *)0xB1)  
 #define OCR2A	(*(volatile unsigned char *)0xB3)
@@ -41,21 +46,26 @@ int main(void) {
 	unsigned char intensity = 64;
 	unsigned char pressed = 0;
 	unsigned char prev_pressed = 0;	
-	unsigned char taken = 0;
+	unsigned char taken = 0; //0 = red lit, 1 = green lit
 	unsigned char state_has_changed = 0;
 
 	DDRD &= ~BIT2;	
-	DDRD |= (BIT5 | BIT6);
+	DDRD |= (BIT5);
 	PORTD |= BIT2;
 	
 	DDRB |= BIT3;
 
+	//set OC0B to fast PWM, non inverting mode 
 	TCCR0A = (BIT0 | BIT1| BIT5);
+	//set prescaler to clk/64 (976Hz at 16MHz)
 	TCCR0B = (BIT0 | BIT1);
 
+	//set OC2A to fast PWM
 	TCCR2A = (BIT0 | BIT1);
+	//prescaler to clk/64
 	TCCR2B = BIT2;
 
+	//ensure green light is off
 	PORTB &= ~BIT3;	
 
 	RED = intensity;
@@ -78,15 +88,21 @@ int main(void) {
 		}
 
 		if(state_has_changed) {
+			//changing to PWM mode it became clear that fast PWM still emits a spike at 0 giving a faint glow, the easiest fix I 
+			//could think of was detaching the pins from PWM completely and then turning them off as GPIO pins 
 			if(taken) {
+				//detach the green pin from timer2 and drive it to a LOW signal
 				TCCR2A &= ~BIT7;
 				PORTB &= ~BIT3;
+				//attach the red pin to timer0 and set it to be intensity
 				TCCR0A |= BIT5;
 				RED = intensity;
 			}
 			if(!taken) {
+				//detach the red pin from timer0 and drive it to a LOW signal
 				TCCR0A &= ~BIT5;
 				PORTD &= ~BIT5;
+				//attach the green pin to timer2 and set it to be intensity
 				TCCR2A |= BIT7;
 				GREEN = intensity;
 			}
