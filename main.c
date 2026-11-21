@@ -110,5 +110,4 @@ int main(void) {
 			state_has_changed = 0;
 		}
 	}
-
 }
