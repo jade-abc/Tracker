@@ -1,3 +1,13 @@
+#define TCCR0A 	(*(volatile unsigned char *)0x44)  
+#define TCCR0B 	(*(volatile unsigned char *)0x45)  
+#define OCR0A	(*(volatile unsigned char *)0x47)
+#define OCR0B	(*(volatile unsigned char *)0x48)
+
+#define TCCR2A 	(*(volatile unsigned char *)0xB0)  
+#define TCCR2B 	(*(volatile unsigned char *)0xB1)  
+#define OCR2A	(*(volatile unsigned char *)0xB3)
+
+
 #define PORTB 	(*(volatile unsigned char *)0x25)  
 #define DDRB	(*(volatile unsigned char *)0x24)
 #define PINB	(*(volatile unsigned char *)0x23)
@@ -9,11 +19,16 @@
 #define BIT0	((unsigned char)1)
 #define BIT1	((unsigned char)1 << 1)
 #define BIT2	((unsigned char)1 << 2)
+#define BIT3	((unsigned char)1 << 3)
+#define BIT4	((unsigned char)1 << 4)
+#define BIT5	((unsigned char)1 << 5)
+#define BIT6	((unsigned char)1 << 6)
+#define BIT7	((unsigned char)1 << 7)
 
+#define GREEN 	OCR2A
+#define RED 	OCR0B
+#define BUTTON 	BIT2
 
-#define GREEN BIT0
-#define RED BIT1
-#define BUTTON BIT2
 
 //ensure you don't read judder flips
 void stall_for_judder(void) {
@@ -23,21 +38,38 @@ void stall_for_judder(void) {
 }
 
 int main(void) {
+	unsigned char intensity = 64;
 	unsigned char pressed = 0;
 	unsigned char prev_pressed = 0;	
+	unsigned char taken = 0;
 	unsigned char state_has_changed = 0;
 
-	DDRB |= GREEN;
-	DDRB |= RED;
-	PORTB |= RED;
-
 	DDRD &= ~BIT2;	
+	DDRD |= (BIT5 | BIT6);
 	PORTD |= BIT2;
+	
+	DDRB |= BIT3;
+
+	TCCR0A = (BIT0 | BIT1| BIT5);
+	TCCR0B = (BIT0 | BIT1);
+
+	TCCR2A = (BIT0 | BIT1);
+	TCCR2B = BIT2;
+
+	PORTB &= ~BIT3;	
+
+	RED = intensity;
+
+
 
 	while(1) {
 		pressed = !(PIND & BUTTON);
 
-		if(!pressed && prev_pressed) prev_pressed = 0;
+		if(!pressed && prev_pressed) 
+		{		
+			stall_for_judder();
+			prev_pressed = 0;
+		}
 
 		if(pressed && !prev_pressed) {
 			state_has_changed = 1;
@@ -46,15 +78,19 @@ int main(void) {
 		}
 
 		if(state_has_changed) {
-			unsigned char change = (PINB & GREEN) ? 1 : 0;
-			if(change) {
-				PORTB &= ~GREEN;
-				PORTB |= RED;
+			if(taken) {
+				TCCR2A &= ~BIT7;
+				PORTB &= ~BIT3;
+				TCCR0A |= BIT5;
+				RED = intensity;
 			}
-			if(!change) {
-				PORTB &= ~RED;
-				PORTB |= GREEN;
+			if(!taken) {
+				TCCR0A &= ~BIT5;
+				PORTD &= ~BIT5;
+				TCCR2A |= BIT7;
+				GREEN = intensity;
 			}
+			taken = !taken;
 			state_has_changed = 0;
 		}
 	}
