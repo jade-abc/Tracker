@@ -11,13 +11,18 @@
  |      +                                                                                                                              *     |
  *===========================================================================================================================================*/
 
-#define SREG 	(*(volatile unsigned char *)	0x5f)  
 
 //timer0 constants for PWM 
 #define TCCR0A 	(*(volatile unsigned char *)	0x44)  
 #define TCCR0B 	(*(volatile unsigned char *)	0x45)  
 #define OCR0A	(*(volatile unsigned char *)	0x47)
 #define OCR0B	(*(volatile unsigned char *)	0x48)
+
+
+#define SREG 	(*(volatile unsigned char *)	0x5f)  
+
+#define PCICR 	(*(volatile unsigned char *)	0x68)  
+#define PCMSK2 	(*(volatile unsigned char *)	0x6D)  
 
 //timer1 constants to use as hardware timer
 #define TCCR1A	(*(volatile unsigned char *)	0x80)
@@ -54,19 +59,33 @@
 #define RED 	OCR0B
 #define BUTTON 	BIT2
 
-
+//variables
 volatile unsigned char juddered = 0;
+volatile unsigned char pressed = 0;
+volatile unsigned char taken = 0; //0 = red lit, 1 = green lit
 
-void start_juddered(void) {
-	PORTB &= ~BIT5;
+unsigned char intensity = 64;
+
+void stall_for_judder(void) {
+	for(volatile unsigned long i = 0; i < 40000UL; i++) {
+
+	}
+}
+void start_judder(void) {
+	//PORTB &= ~BIT5;
 	juddered = 1;	
-	TIMSK1  |= BIT1; 
+	TIMSK1 |= BIT1; 
 	TCCR1A |= BIT7;
-	OCR1AH |= (BIT5 | BIT3);
-	OCR1AL |= (BIT0 | BIT1 | BIT4 | BIT6 | BIT7);
-	TCCR1B |= (BIT0 | BIT1);
+	OCR1AH = 0x13;
+	OCR1AL = 0x87;
+	TCCR1B = (BIT0 | BIT1 | BIT3);
 }
 
+void blink_led(void) {
+	PORTB &= ~BIT5;
+	stall_for_judder();
+	PORTB |= BIT5;
+}
 
 //interrupt fires when the timer reaches its number
 __attribute__ ((signal, used, externally_visible))
@@ -74,20 +93,64 @@ void __vector_11(void) {
 	SREG &= ~BIT7;
 	TCCR1B = 0; 
 	juddered = 0;
-	PORTB |= BIT5;
+	//PORTB |= BIT5;
 	TIMSK1 = 0;
 	TCCR1A = 0;
 	SREG |= BIT7;
+	PCMSK2 |= BIT2;
+}
+
+
+__attribute__ ((signal, used, externally_visible))
+void __vector_5(void) {
+	//latch previous button state
+	static unsigned char previous = 1;	
+	unsigned char now =  (PIND >> 2) & 1;
+	pressed = (previous & ~now) ? 1 : 0; 
+	previous = now;
+
+	PORTB &= ~BIT5;
+	PCMSK2 &= ~BIT2;
+	if(!pressed) {
+		PORTB &= ~BIT5;
+		SREG |= BIT7;
+	//	blink_led();
+		pressed = 0;
+		start_judder();
+		return;
+	} 
+	PORTB |= BIT5;
+	if(taken) {
+		//detach the green pin from timer2 and drive it to a LOW signal
+		TCCR0A &= ~BIT7;
+		PORTD &= ~BIT6;
+		//attach the red pin to timer0 and set it to be intensity
+		TCCR0A |= BIT5;
+		RED = intensity;
+	}
+	if(!taken) {
+		//detach the red pin from timer0 and drive it to a LOW signal
+		TCCR0A &= ~BIT5;
+		PORTD &= ~BIT5;
+		//attach the green pin to timer2 and set it to be intensity
+		TCCR0A |= BIT7;
+		GREEN = intensity;
+	}
+	//PCMSK2 |= BIT2;
+	taken = !taken;
+	start_judder();
 }
 
 int main(void) {
-	unsigned char intensity = 64;
-	unsigned char pressed = 0;
+	//unsigned char pressed = 0;
 	unsigned char prev_pressed = 0;	
-	unsigned char taken = 0; //0 = red lit, 1 = green lit
 	unsigned char state_has_changed = 0;
 
 	SREG |= BIT7;
+
+	PCICR |= BIT2;
+	PCMSK2 |= BIT2;
+
 	
 	DDRB |= BIT5;
 	PORTB |= BIT5;
@@ -111,12 +174,12 @@ int main(void) {
 
 
 	while(1) {
-		if (!juddered) {
+		if (0 == 1) {
 			pressed = !(PIND & BUTTON);
 
 			if(!pressed && prev_pressed) 
 			{		
-				start_juddered();
+				start_judder();
 				prev_pressed = 0;
 				continue;
 			}
@@ -124,7 +187,7 @@ int main(void) {
 			if(pressed && !prev_pressed) {
 				state_has_changed = 1;
 				prev_pressed = 1;
-				start_juddered();
+				start_judder();
 			}
 
 			if(state_has_changed) {
