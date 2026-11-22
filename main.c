@@ -18,7 +18,7 @@
 #define OCR0A	(*(volatile unsigned char *)	0x47)
 #define OCR0B	(*(volatile unsigned char *)	0x48)
 
-
+#define SMCR 	(*(volatile unsigned char *)	0x53)  
 #define SREG 	(*(volatile unsigned char *)	0x5f)  
 
 #define PCICR 	(*(volatile unsigned char *)	0x68)  
@@ -60,20 +60,19 @@
 #define BUTTON 	BIT2
 
 //variables
-volatile unsigned char juddered = 0;
-volatile unsigned char pressed = 0;
 volatile unsigned char taken = 0; //0 = red lit, 1 = green lit
-
 unsigned char intensity = 64;
 
-void stall_for_judder(void) {
-	for(volatile unsigned long i = 0; i < 40000UL; i++) {
+/*===========================================================================================================================================*
+ |      +                                                                                                                              *     |
+ |                                                                  *                                                                        |
+ |*                                         *                   FUNCTIONS                    *                                              *| 
+ |                                                                  *                                                                        |
+ |      +                                                                                                                              *     |
+ *===========================================================================================================================================*/
 
-	}
-}
+
 void start_judder(void) {
-	//PORTB &= ~BIT5;
-	juddered = 1;	
 	TIMSK1 |= BIT1; 
 	TCCR1A |= BIT7;
 	OCR1AH = 0x13;
@@ -81,32 +80,25 @@ void start_judder(void) {
 	TCCR1B = (BIT0 | BIT1 | BIT3);
 }
 
-void blink_led(void) {
-	PORTB &= ~BIT5;
-	stall_for_judder();
-	PORTB |= BIT5;
-}
-
 //interrupt fires when the timer reaches its number
 __attribute__ ((signal, used, externally_visible))
 void __vector_11(void) {
 	SREG &= ~BIT7;
 	TCCR1B = 0; 
-	juddered = 0;
-	//PORTB |= BIT5;
 	TIMSK1 = 0;
 	TCCR1A = 0;
 	SREG |= BIT7;
 	PCMSK2 |= BIT2;
+	SMCR |= BIT0;
 }
-
 
 __attribute__ ((signal, used, externally_visible))
 void __vector_5(void) {
+	SMCR &= ~BIT0;
 	//latch previous button state
 	static unsigned char previous = 1;	
 	unsigned char now =  (PIND >> 2) & 1;
-	pressed = (previous & ~now) ? 1 : 0; 
+	unsigned char pressed = (previous & ~now) ? 1 : 0; 
 	previous = now;
 
 	PORTB &= ~BIT5;
@@ -114,7 +106,6 @@ void __vector_5(void) {
 	if(!pressed) {
 		PORTB &= ~BIT5;
 		SREG |= BIT7;
-	//	blink_led();
 		pressed = 0;
 		start_judder();
 		return;
@@ -136,17 +127,13 @@ void __vector_5(void) {
 		TCCR0A |= BIT7;
 		GREEN = intensity;
 	}
-	//PCMSK2 |= BIT2;
 	taken = !taken;
 	start_judder();
 }
 
 int main(void) {
-	//unsigned char pressed = 0;
-	unsigned char prev_pressed = 0;	
-	unsigned char state_has_changed = 0;
-
 	SREG |= BIT7;
+	SMCR |= BIT0;
 
 	PCICR |= BIT2;
 	PCMSK2 |= BIT2;
@@ -165,53 +152,12 @@ int main(void) {
 	TCCR0A = (BIT0 | BIT1| BIT5);
 	//set prescaler to clk/64 (976Hz at 16MHz)
 	TCCR0B = (BIT0 | BIT1);
-
 	//ensure green light is off
 	PORTD &= ~BIT6;	
 
 	RED = intensity;
 
-
-
 	while(1) {
-		if (0 == 1) {
-			pressed = !(PIND & BUTTON);
-
-			if(!pressed && prev_pressed) 
-			{		
-				start_judder();
-				prev_pressed = 0;
-				continue;
-			}
-
-			if(pressed && !prev_pressed) {
-				state_has_changed = 1;
-				prev_pressed = 1;
-				start_judder();
-			}
-
-			if(state_has_changed) {
-				//changing to PWM mode it became clear that fast PWM still emits a spike at 0 giving a faint glow, the easiest fix I 
-				//could think of was detaching the pins from PWM completely and then turning them off as GPIO pins 
-				if(taken) {
-					//detach the green pin from timer2 and drive it to a LOW signal
-					TCCR0A &= ~BIT7;
-					PORTD &= ~BIT6;
-					//attach the red pin to timer0 and set it to be intensity
-					TCCR0A |= BIT5;
-					RED = intensity;
-				}
-				if(!taken) {
-					//detach the red pin from timer0 and drive it to a LOW signal
-					TCCR0A &= ~BIT5;
-					PORTD &= ~BIT5;
-					//attach the green pin to timer2 and set it to be intensity
-					TCCR0A |= BIT7;
-					GREEN = intensity;
-				}
-				taken = !taken;
-				state_has_changed = 0;
-			}
-		}
+		asm volatile("sleep");
 	}
 }
